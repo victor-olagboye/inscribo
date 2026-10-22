@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
 function refresh(bookId: string) {
   revalidatePath(`/book/${bookId}`);
@@ -89,4 +90,12 @@ export async function moveChapter(
   if (failed?.error) throw new Error(failed.error.message);
 
   refresh(bookId);
+}
+
+export async function deleteBook(bookId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("books").delete().eq("id", bookId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/library");
+  redirect("/library");
 }

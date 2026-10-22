@@ -2,8 +2,9 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addChapter, deleteChapter, moveChapter, updateBook } from "./actions";
+import { addChapter, deleteBook, deleteChapter, moveChapter, updateBook } from "./actions";
 import { ChapterActions } from "./chapter-actions";
+import { DeleteBookButton } from "./delete-book-button";
 
 async function Book({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -32,6 +33,7 @@ async function Book({ params }: { params: Promise<{ id: string }> }) {
   const totalWords = list.reduce((sum, c) => sum + c.word_count, 0);
   const add = addChapter.bind(null, id);
   const save = updateBook.bind(null, id);
+  const remove = deleteBook.bind(null, id);
 
   const input =
     "w-full h-10 px-space-md bg-surface-container-low focus:bg-surface-container-lowest rounded-lg font-ui-body text-ui-body text-on-surface placeholder:text-outline outline-none shadow-sm focus:shadow-md transition-colors";
@@ -161,6 +163,17 @@ async function Book({ params }: { params: Promise<{ id: string }> }) {
             ))}
           </div>
         )}
+      </div>
+      <div className="mt-space-xl flex items-center justify-between gap-space-md rounded-xl bg-error-container/30 p-space-lg">
+        <div>
+          <p className="font-ui-medium text-ui-medium text-on-surface">
+            delete this book
+          </p>
+          <p className="font-ui-small text-ui-small text-on-surface-variant">
+            removes the book and all its chapters permanently.
+          </p>
+        </div>
+        <DeleteBookButton title={book.title} action={remove} />
       </div>
     </>
   );
