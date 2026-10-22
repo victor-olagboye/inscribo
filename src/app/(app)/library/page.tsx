@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { NewBookButton } from "./new-book-button";
 import { coverStyleFor } from "@/lib/cover-styles"; 
-
+import Link from "next/link";
 async function Library() {
   const supabase = await createClient();
   const {
@@ -58,8 +58,9 @@ async function Library() {
             const chapters = book.chapters?.length ?? 0;
             const cover = coverStyleFor(book.id);
             return (
-              <div
+              <Link
                 key={book.id}
+                href={`/book/${book.id}`}
                 className="group flex flex-col bg-surface-container-lowest rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200"
               >
                 <div
@@ -105,7 +106,7 @@ async function Library() {
                     {words.toLocaleString()} words
                   </span>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
