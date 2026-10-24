@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ChapterEditor } from "@/components/editor/chapter-editor";
+import { sortChapters } from "@/lib/chapters";
 
 async function Write({
   params,
@@ -22,7 +23,7 @@ async function Write({
       supabase.from("books").select("id, title").eq("id", id).maybeSingle(),
       supabase
         .from("chapters")
-        .select("id, title, word_count")
+        .select("id, title, word_count type, position")
         .eq("book_id", id)
         .order("position"),
       supabase
@@ -57,31 +58,36 @@ async function Write({
         </div>
 
         <nav className="flex-1 overflow-y-auto px-space-sm space-y-1 pb-space-lg">
-          {(chapters ?? []).map((c, i) => {
-            const active = c.id === chapterId;
-            return (
-              <Link
-                key={c.id}
-                href={`/book/${id}/write/${c.id}`}
-                className={`flex items-center justify-between px-space-md py-2 rounded-lg transition-colors ${
-                  active
-                    ? "bg-surface-container-highest text-on-surface font-semibold"
-                    : "text-on-surface-variant hover:bg-surface-container"
-                }`}
-              >
-                <span className="flex items-center gap-2 min-w-0">
-                  <span
-                    className={`font-ui-small text-ui-small ${active ? "text-primary" : "text-outline"}`}
-                  >
-                    {String(i + 1).padStart(2, "0")}
+          {(() => {
+            let n = 0;
+            return sortChapters(chapters ?? []).map((c) => {
+              const numbered = c.type === "body";
+              if (numbered) n += 1;
+              const active = c.id === chapterId;
+              return (
+                <Link
+                  key={c.id}
+                  href={`/book/${id}/write/${c.id}`}
+                  className={`flex items-center justify-between px-space-md py-2 rounded-lg transition-colors ${
+                    active
+                      ? "bg-surface-container-highest text-on-surface font-semibold"
+                      : "text-on-surface-variant hover:bg-surface-container"
+                  }`}
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={`font-ui-small text-ui-small ${active ? "text-primary" : "text-outline"}`}
+                    >
+                      {numbered ? String(n).padStart(2, "0") : "·"}
+                    </span>
+                    <span className="font-ui-medium text-ui-medium truncate">
+                      {c.title}
+                    </span>
                   </span>
-                  <span className="font-ui-medium text-ui-medium truncate">
-                    {c.title}
-                  </span>
-                </span>
-              </Link>
-            );
-          })}
+                </Link>
+              );
+            });
+          })()}
         </nav>
       </aside>
 
