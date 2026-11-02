@@ -97,6 +97,17 @@ async function Book({ params }: { params: Promise<{ id: string }> }) {
           {bodyCount} {bodyCount === 1 ? "chapter" : "chapters"} ·{" "}
           {totalWords.toLocaleString()} words
         </p>
+        {bodyCount > 0 && (
+          <a
+            href={`/book/${id}/epub`}
+            className="mt-space-md self-start h-9 px-space-md bg-primary hover:bg-primary-container text-on-primary font-ui-medium text-ui-small rounded-lg shadow-sm transition-all inline-flex items-center gap-1.5"
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              download
+            </span>
+            <span>export ebook (.epub)</span>
+          </a>
+        )}
       </div>
 
       <form
