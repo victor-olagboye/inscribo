@@ -13,6 +13,7 @@ import {
 } from "./actions";
 import { ChapterActions } from "./chapter-actions";
 import { DeleteBookButton } from "./delete-book-button";
+import { CoverUpload } from "./cover-upload";
 
 async function Book({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,10 +26,18 @@ async function Book({ params }: { params: Promise<{ id: string }> }) {
 
   const { data: book } = await supabase
     .from("books")
-    .select("id, title, subtitle, author, status")
+    .select("id, title, subtitle, author, status, cover_path")
     .eq("id", id)
     .maybeSingle();
   if (!book) notFound();
+
+  let coverUrl: string | null = null;
+  if (book.cover_path) {
+    const { data } = await supabase.storage
+      .from("covers")
+      .createSignedUrl(book.cover_path, 3600);
+    coverUrl = data?.signedUrl ?? null;
+  }
 
   const { data: chapters, error } = await supabase
     .from("chapters")
@@ -153,6 +162,37 @@ async function Book({ params }: { params: Promise<{ id: string }> }) {
           </button>
         </div>
       </form>
+
+      <div className="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg mb-space-xl flex flex-col sm:flex-row gap-space-lg">
+        <div className="w-36 shrink-0 aspect-[2/3] rounded-r-md rounded-l-sm overflow-hidden bg-surface-container flex items-center justify-center shadow-sm">
+          {coverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverUrl}
+              alt={`${book.title} cover`}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="material-symbols-outlined text-[32px] text-outline-variant">
+              image
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col gap-space-sm justify-center">
+          <h2 className="font-title-editorial text-title-editorial text-on-surface">
+            cover
+          </h2>
+          <p className="font-ui-small text-ui-small text-on-surface-variant max-w-sm">
+            this image appears in your library and becomes the cover of your
+            ebook.
+          </p>
+          <CoverUpload
+            bookId={id}
+            userId={user.id}
+            currentPath={book.cover_path}
+          />
+        </div>
+      </div>
 
       <div className="flex items-center justify-end gap-space-sm mb-space-md">
         <details className="relative">

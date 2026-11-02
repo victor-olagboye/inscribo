@@ -13,10 +13,23 @@ async function Library() {
 
   const { data: books, error } = await supabase
     .from("books")
-    .select("id, title, author, status, chapters(word_count)")
+    .select("id, title, author, status, cover_path, chapters(word_count)")
     .order("updated_at", { ascending: false });
 
   if (error) throw new Error(error.message);
+
+  const paths = (books ?? [])
+    .map((b) => b.cover_path)
+    .filter((p): p is string => !!p);
+  const signed = paths.length
+    ? ((await supabase.storage.from("covers").createSignedUrls(paths, 3600))
+        .data ?? [])
+    : [];
+  const coverUrls = new Map(
+    signed.flatMap((s) =>
+      s.path && s.signedUrl ? [[s.path, s.signedUrl] as const] : [],
+    ),
+  );
 
   const count = books?.length ?? 0;
 
@@ -57,39 +70,55 @@ async function Library() {
             );
             const chapters = book.chapters?.length ?? 0;
             const cover = coverStyleFor(book.id);
+            const coverUrl = book.cover_path
+              ? coverUrls.get(book.cover_path)
+              : undefined;
             return (
               <Link
                 key={book.id}
                 href={`/book/${book.id}`}
                 className="group flex flex-col bg-surface-container-lowest rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200"
               >
-                <div
-                  className="relative w-full aspect-[3/4] rounded-r-md rounded-l-sm overflow-hidden shadow-sm flex flex-col justify-between p-5 mb-4 group-hover:-translate-y-1.5 transition-transform duration-200"
-                  style={{ backgroundColor: cover.bg }}
-                >
-                  <div
-                    className={`absolute left-0 top-0 bottom-0 w-3.5 bg-gradient-to-r ${cover.spine}`}
-                  />
-                  <div className="absolute left-3.5 top-0 bottom-0 w-px bg-black/10" />
-                  <div className="relative z-10 pl-2">
-                    <div
-                      className="w-6 h-px mb-3"
-                      style={{ backgroundColor: cover.rule }}
+                {coverUrl ? (
+                  <div className="relative w-full aspect-[2/3] rounded-r-md rounded-l-sm overflow-hidden shadow-sm mb-4 group-hover:-translate-y-1.5 transition-transform duration-200">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={coverUrl}
+                      alt={`${book.title} cover`}
+                      className="w-full h-full object-cover"
                     />
-                    <h3
-                      className="font-headline-md text-headline-md leading-tight line-clamp-4"
-                      style={{ color: cover.title }}
-                    >
-                      {book.title}
-                    </h3>
+                    <div className="absolute left-0 top-0 bottom-0 w-3.5 bg-gradient-to-r from-black/25 via-black/5 to-transparent" />
                   </div>
-                  <p
-                    className="relative z-10 pl-2 font-body-editorial text-ui-small italic"
-                    style={{ color: cover.author }}
+                ) : (
+                  <div
+                    className="relative w-full aspect-[3/4] rounded-r-md rounded-l-sm overflow-hidden shadow-sm flex flex-col justify-between p-5 mb-4 group-hover:-translate-y-1.5 transition-transform duration-200"
+                    style={{ backgroundColor: cover.bg }}
                   >
-                    {book.author ?? ""}
-                  </p>
-                </div>
+                    <div
+                      className={`absolute left-0 top-0 bottom-0 w-3.5 bg-gradient-to-r ${cover.spine}`}
+                    />
+                    <div className="absolute left-3.5 top-0 bottom-0 w-px bg-black/10" />
+                    <div className="relative z-10 pl-2">
+                      <div
+                        className="w-6 h-px mb-3"
+                        style={{ backgroundColor: cover.rule }}
+                      />
+                      <h3
+                        className="font-headline-md text-headline-md leading-tight line-clamp-4"
+                        style={{ color: cover.title }}
+                      >
+                        {book.title}
+                      </h3>
+                    </div>
+                    <p
+                      className="relative z-10 pl-2 font-body-editorial text-ui-small italic"
+                      style={{ color: cover.author }}
+                    >
+                      {book.author ?? ""}
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between gap-1 mb-1">
                   <h4 className="font-headline-md text-[17px] text-on-surface font-medium truncate">
                     {book.title}

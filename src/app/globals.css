@@ -184,3 +184,9 @@ body {
 .manuscript ::selection {
   background: var(--color-primary-fixed);
 }
+
+.manuscript mark {
+  border-radius: 2px;
+  padding: 0 1px;
+  color: inherit;
+}

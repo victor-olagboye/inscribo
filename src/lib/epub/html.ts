@@ -30,6 +30,15 @@ function renderText(node: PMNode): string {
       case "underline":
         out = `<u>${out}</u>`;
         break;
+      case "highlight":
+        out = `<mark>${out}</mark>`;
+        break;
+      case "subscript":
+        out = `<sub>${out}</sub>`;
+        break;
+      case "superscript":
+        out = `<sup>${out}</sup>`;
+        break;
       case "strike":
         out = `<s>${out}</s>`;
         break;
@@ -38,7 +47,8 @@ function renderText(node: PMNode): string {
         break;
       case "link": {
         const href = String(mark.attrs?.href ?? "");
-        if (/^(https?:|mailto:)/i.test(href)) out = `<a href="${escAttr(href)}">${out}</a>`;
+        if (/^(https?:|mailto:)/i.test(href))
+          out = `<a href="${escAttr(href)}">${out}</a>`;
         break;
       }
       // textStyle (font family) is intentionally dropped: readers choose their own font

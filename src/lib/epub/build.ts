@@ -17,6 +17,8 @@ export type EpubChapter = {
   content: unknown;
 };
 
+export type EpubCover = { data: ArrayBuffer; type: "image/jpeg" | "image/png" };
+
 const CSS = `body { margin: 0 5%; line-height: 1.5; }
 h1 { font-size: 1.6em; line-height: 1.2; text-align: center; margin: 2.5em 0 1.5em; }
 h2 { font-size: 1.3em; line-height: 1.3; margin: 1.8em 0 0.8em; }
@@ -36,6 +38,8 @@ hr.scene-break::after { content: "\\2042"; letter-spacing: 0.5em; }
 .title-page .author { text-indent: 0; letter-spacing: 0.1em; text-transform: uppercase; }
 nav ol { list-style: none; padding: 0; }
 nav li { margin: 0.6em 0; }
+.cover { text-align: center; margin: 0; }
+.cover img { max-width: 100%; max-height: 95vh; }
 `;
 
 function lang(code: string | null): string {
@@ -73,6 +77,7 @@ type Item = {
 export async function buildEpub(
   book: EpubBook,
   chapters: EpubChapter[],
+  cover?: EpubCover,
 ): Promise<ArrayBuffer> {
   const language = lang(book.language);
   const items: Item[] = [];
@@ -112,6 +117,22 @@ ${book.author ? `<p class="author">${esc(book.author)}</p>` : ""}
       isBody: c.type === "body",
     });
   });
+
+  const coverExt = cover?.type === "image/png" ? "png" : "jpg";
+  if (cover) {
+    items.unshift({
+      id: "cover",
+      href: "cover.xhtml",
+      title: "Cover",
+      xhtml: page(
+        "Cover",
+        `<div class="cover"><img src="cover.${coverExt}" alt="Cover"/></div>`,
+        language,
+      ),
+      inToc: false,
+      isBody: false,
+    });
+  }
 
   const toc = items.filter((i) => i.inToc);
   const firstBody = items.find((i) => i.isBody) ?? toc[0];
@@ -154,11 +175,13 @@ ${isbnTag}
 <dc:title>${esc(book.title)}</dc:title>
 ${book.author ? `<dc:creator>${esc(book.author)}</dc:creator>` : ""}
 <dc:language>${language}</dc:language>
+${cover ? `<meta name="cover" content="cover-image"/>` : ""}
 <meta property="dcterms:modified">${modified}</meta>
 </metadata>
 <manifest>
 <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
 <item id="css" href="style.css" media-type="text/css"/>
+${cover ? `<item id="cover-image" href="cover.${coverExt}" media-type="${cover.type}" properties="cover-image"/>` : ""}
 ${items.map((i) => `<item id="${i.id}" href="${i.href}" media-type="application/xhtml+xml"/>`).join("\n")}
 </manifest>
 <spine>
@@ -181,6 +204,7 @@ ${items.map((i) => `<itemref idref="${i.id}"/>`).join("\n")}
   zip.file("OEBPS/content.opf", opf);
   zip.file("OEBPS/nav.xhtml", nav);
   zip.file("OEBPS/style.css", CSS);
+  if (cover) zip.file(`OEBPS/cover.${coverExt}`, cover.data);
   for (const i of items) zip.file(`OEBPS/${i.href}`, i.xhtml);
 
   return zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });

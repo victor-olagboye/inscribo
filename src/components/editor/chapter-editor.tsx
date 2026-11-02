@@ -9,8 +9,19 @@ import {
 } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
-import { TextStyle, FontFamily } from "@tiptap/extension-text-style";
+import Highlight from "@tiptap/extension-highlight";
+import Subscript from "@tiptap/extension-subscript";
+import Superscript from "@tiptap/extension-superscript";
+import {
+  TextStyle,
+  FontFamily,
+  FontSize,
+  LineHeight,
+  Color,
+} from "@tiptap/extension-text-style";
 import { createClient } from "@/lib/supabase/client";
+import { Indent } from "./indent";
+import { Ruler } from "./ruler";
 
 type Props = {
   chapterId: string;
@@ -29,6 +40,19 @@ const FONTS = [
   { label: "Inter", value: "Inter" },
 ];
 
+const SIZES = [
+  "14px",
+  "16px",
+  "18px",
+  "20px",
+  "24px",
+  "28px",
+  "32px",
+  "40px",
+  "56px",
+];
+const LINE_HEIGHTS = ["1.2", "1.5", "1.85", "2.2"];
+
 const ALIGNS = [
   { value: "left", icon: "format_align_left" },
   { value: "center", icon: "format_align_center" },
@@ -36,8 +60,74 @@ const ALIGNS = [
   { value: "justify", icon: "format_align_justify" },
 ] as const;
 
+const HIGHLIGHTS = [
+  "#FFF3A3",
+  "#CFF5D8",
+  "#FFD6E0",
+  "#D6E4FF",
+  "#E9DDFF",
+  "#FFE0B8",
+];
+const COLORS = [
+  "#18181B",
+  "#4F46E5",
+  "#AE3115",
+  "#FF6B4A",
+  "#0F766E",
+  "#71717A",
+];
+
 const countWords = (text: string) =>
   text.trim().split(/\s+/).filter(Boolean).length;
+
+function Palette({
+  icon,
+  title,
+  colors,
+  onPick,
+  onClear,
+}: {
+  icon: string;
+  title: string;
+  colors: string[];
+  onPick: (c: string) => void;
+  onClear: () => void;
+}) {
+  const close = (e: React.MouseEvent) =>
+    e.currentTarget.closest("details")?.removeAttribute("open");
+
+  return (
+    <details className="relative">
+      <summary
+        title={title}
+        className="w-8 h-8 rounded flex items-center justify-center text-on-surface hover:bg-surface-container cursor-pointer list-none select-none"
+      >
+        <span className="material-symbols-outlined text-[18px]">{icon}</span>
+      </summary>
+      <div
+        className="absolute left-0 mt-1 p-2 bg-surface-container-lowest rounded-xl shadow-lg z-30 flex items-center gap-1.5"
+        onClick={close}
+      >
+        {colors.map((c) => (
+          <button
+            key={c}
+            title={c}
+            onClick={() => onPick(c)}
+            className="w-6 h-6 rounded-full ring-1 ring-black/10"
+            style={{ backgroundColor: c }}
+          />
+        ))}
+        <button
+          title="None"
+          onClick={onClear}
+          className="w-6 h-6 rounded-full ring-1 ring-black/10 flex items-center justify-center text-outline"
+        >
+          <span className="material-symbols-outlined text-[14px]">block</span>
+        </button>
+      </div>
+    </details>
+  );
+}
 
 export function ChapterEditor({
   chapterId,
@@ -91,6 +181,13 @@ export function ChapterEditor({
       StarterKit,
       TextStyle,
       FontFamily,
+      FontSize,
+      LineHeight,
+      Color,
+      Highlight.configure({ multicolor: true }),
+      Subscript,
+      Superscript,
+      Indent,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
     content: initialContent,
@@ -104,22 +201,37 @@ export function ChapterEditor({
 
   const ui = useEditorState({
     editor,
-    selector: ({ editor }) => ({
-      canUndo: editor?.can().undo() ?? false,
-      canRedo: editor?.can().redo() ?? false,
-      bold: editor?.isActive("bold") ?? false,
-      italic: editor?.isActive("italic") ?? false,
-      heading: editor?.isActive("heading", { level: 2 }) ?? false,
-      quote: editor?.isActive("blockquote") ?? false,
-      list: editor?.isActive("bulletList") ?? false,
-      align:
-        ALIGNS.find((a) => editor?.isActive({ textAlign: a.value }))?.value ??
-        "left",
-      font: (
-        (editor?.getAttributes("textStyle").fontFamily as string | undefined) ??
-        ""
-      ).replace(/["']/g, ""),
-    }),
+    selector: ({ editor }) => {
+      const ts = editor?.getAttributes("textStyle") ?? {};
+      const block =
+        (editor?.isActive("heading")
+          ? editor?.getAttributes("heading")
+          : editor?.getAttributes("paragraph")) ?? {};
+      return {
+        canUndo: editor?.can().undo() ?? false,
+        canRedo: editor?.can().redo() ?? false,
+        bold: editor?.isActive("bold") ?? false,
+        italic: editor?.isActive("italic") ?? false,
+        underline: editor?.isActive("underline") ?? false,
+        strike: editor?.isActive("strike") ?? false,
+        sub: editor?.isActive("subscript") ?? false,
+        sup: editor?.isActive("superscript") ?? false,
+        heading: editor?.isActive("heading", { level: 2 }) ?? false,
+        quote: editor?.isActive("blockquote") ?? false,
+        list: editor?.isActive("bulletList") ?? false,
+        align:
+          ALIGNS.find((a) => editor?.isActive({ textAlign: a.value }))?.value ??
+          "left",
+        font: ((ts.fontFamily as string | undefined) ?? "").replace(
+          /["']/g,
+          "",
+        ),
+        size: (ts.fontSize as string | undefined) ?? "",
+        lineHeight: (ts.lineHeight as string | undefined) ?? "",
+        indentLeft: Number(block.indentLeft) || 0,
+        indentFirst: Number(block.indentFirst) || 0,
+      };
+    },
   });
 
   useEffect(() => {
@@ -144,6 +256,9 @@ export function ChapterEditor({
         ? "bg-surface-container-high text-primary"
         : "text-on-surface hover:bg-surface-container"
     }`;
+
+  const sel =
+    "h-8 px-2 rounded bg-transparent hover:bg-surface-container font-ui-small text-ui-small text-on-surface outline-none cursor-pointer";
 
   const divider = <div className="h-4 w-px bg-outline-variant mx-1" />;
 
@@ -181,17 +296,53 @@ export function ChapterEditor({
 
           <select
             value={ui?.font ?? ""}
+            title="Font"
+            className={sel}
             onChange={(e) => {
               const v = e.target.value;
               if (v) run()?.setFontFamily(v).run();
               else run()?.unsetFontFamily().run();
             }}
-            title="Font"
-            className="h-8 px-2 rounded bg-transparent hover:bg-surface-container font-ui-small text-ui-small text-on-surface outline-none cursor-pointer"
           >
             {FONTS.map((f) => (
               <option key={f.label} value={f.value}>
                 {f.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={ui?.size ?? ""}
+            title="Font size"
+            className={sel}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v) run()?.setFontSize(v).run();
+              else run()?.unsetFontSize().run();
+            }}
+          >
+            <option value="">Size</option>
+            {SIZES.map((s) => (
+              <option key={s} value={s}>
+                {parseInt(s)}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={ui?.lineHeight ?? ""}
+            title="Line height"
+            className={sel}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v) run()?.setLineHeight(v).run();
+              else run()?.unsetLineHeight().run();
+            }}
+          >
+            <option value="">Spacing</option>
+            {LINE_HEIGHTS.map((l) => (
+              <option key={l} value={l}>
+                {l}
               </option>
             ))}
           </select>
@@ -216,6 +367,62 @@ export function ChapterEditor({
               format_italic
             </span>
           </button>
+          <button
+            className={btn(ui?.underline)}
+            title="Underline"
+            onClick={() => run()?.toggleUnderline().run()}
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              format_underlined
+            </span>
+          </button>
+          <button
+            className={btn(ui?.strike)}
+            title="Strikethrough"
+            onClick={() => run()?.toggleStrike().run()}
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              strikethrough_s
+            </span>
+          </button>
+          <button
+            className={btn(ui?.sup)}
+            title="Superscript"
+            onClick={() => run()?.toggleSuperscript().run()}
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              superscript
+            </span>
+          </button>
+          <button
+            className={btn(ui?.sub)}
+            title="Subscript"
+            onClick={() => run()?.toggleSubscript().run()}
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              subscript
+            </span>
+          </button>
+
+          {divider}
+
+          <Palette
+            icon="format_color_text"
+            title="Text color"
+            colors={COLORS}
+            onPick={(c) => run()?.setColor(c).run()}
+            onClear={() => run()?.unsetColor().run()}
+          />
+          <Palette
+            icon="ink_highlighter"
+            title="Highlight"
+            colors={HIGHLIGHTS}
+            onPick={(c) => run()?.toggleHighlight({ color: c }).run()}
+            onClear={() => run()?.unsetHighlight().run()}
+          />
+
+          {divider}
+
           <button
             className={btn(ui?.heading)}
             title="Heading"
@@ -265,6 +472,18 @@ export function ChapterEditor({
               </span>
             </button>
           ))}
+
+          {divider}
+
+          <button
+            className={btn()}
+            title="Clear formatting"
+            onClick={() => run()?.unsetAllMarks().clearNodes().run()}
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              format_clear
+            </span>
+          </button>
         </div>
 
         <div className="flex items-center gap-space-sm px-3.5 py-1.5 rounded-full bg-surface-container-lowest shadow-sm font-ui-small text-ui-small text-on-surface-variant">
@@ -302,6 +521,11 @@ export function ChapterEditor({
           className="w-full mb-space-xl bg-transparent outline-none font-headline-xl text-headline-xl text-on-surface tracking-tight placeholder:text-outline-variant"
         />
         <div className="w-12 h-0.5 bg-primary mb-space-xl" />
+        <Ruler
+          editor={editor}
+          left={ui?.indentLeft ?? 0}
+          first={ui?.indentFirst ?? 0}
+        />
         <EditorContent editor={editor} />
       </article>
     </div>

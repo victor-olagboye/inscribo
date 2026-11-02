@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { sortChapters } from "@/lib/chapters";
-import { buildEpub } from "@/lib/epub/build";
+import { buildEpub, type EpubCover } from "@/lib/epub/build";
 
 export async function GET(
   _req: Request,
@@ -16,7 +16,7 @@ export async function GET(
 
   const { data: book } = await supabase
     .from("books")
-    .select("id, title, subtitle, author, language, isbn")
+    .select("id, title, subtitle, author, language, isbn, cover_path")
     .eq("id", id)
     .maybeSingle();
   if (!book) return new Response("Not found", { status: 404 });
@@ -35,7 +35,20 @@ export async function GET(
     });
   }
 
-  const file = await buildEpub(book, sorted);
+  let cover: EpubCover | undefined;
+  if (book.cover_path) {
+    const { data: blob } = await supabase.storage
+      .from("covers")
+      .download(book.cover_path);
+    if (blob) {
+      cover = {
+        data: await blob.arrayBuffer(),
+        type: book.cover_path.endsWith(".png") ? "image/png" : "image/jpeg",
+      };
+    }
+  }
+
+  const file = await buildEpub(book, sorted, cover);
 
   const slug =
     book.title
